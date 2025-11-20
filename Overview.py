@@ -1,8 +1,10 @@
+import json
 import re
 from typing import List, Dict, Tuple
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from api_client import fetch_jobs_from_endpoint
 
@@ -111,6 +113,52 @@ st.markdown("---")
 
 # ---------------- GETTING STARTED ----------------
 st.subheader("🚀 Getting Started")
+
+NARRATION_TEXT = """
+Welcome to FindSGJobs. This quick tour is under five minutes. Start in Job Search using the sidebar filters to find roles by title, company, salary, MRT, employment type, and education. Click Fetch Jobs to load the table and review roles. Then go to the Gap Analysis page to select a job and upload your resume to analyze your fit. Hit Run Gap Analysis to see your match score, keyword coverage, strengths, gaps, and course recommendations tailored to Singapore. You can switch between pages without losing your search because results stay in session. If you enable AI in the Gap Analysis sidebar and add your keys, you will get richer insights. That is the end of the guide—happy job hunting with FindSGJobs!
+"""
+
+components.html(
+    f"""
+    <div style='margin: 1rem 0;'>
+        <button id="readme-audio" style="padding: 0.55rem 0.9rem; border: none; border-radius: 0.5rem; background: #1f77b4; color: white; font-weight: 600; cursor: pointer;">🔊 ReadMe: Audio Guide</button>
+        <span id="readme-status" style="margin-left: 0.6rem; color: #555;"></span>
+    </div>
+    <script>
+      const text = {json.dumps(NARRATION_TEXT)};
+      const button = document.getElementById('readme-audio');
+      const status = document.getElementById('readme-status');
+      const pickVoice = () => {{
+        const voices = window.speechSynthesis.getVoices();
+        const female = voices.find(v => /female|woman|zira|susan|salli|joanna|amy/i.test(v.name + ' ' + v.lang));
+        return female || voices[0];
+      }};
+
+      // Some browsers populate voices asynchronously; warm them once.
+      window.speechSynthesis.onvoiceschanged = () => {{}};
+
+      const speakGuide = () => {{
+        if (!('speechSynthesis' in window)) {{
+          alert('Speech is not supported in this browser.');
+          return;
+        }}
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        const voice = pickVoice();
+        if (voice) utterance.voice = voice;
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        status.textContent = 'Playing audio guide…';
+        button.disabled = true;
+        utterance.onend = () => {{ button.disabled = false; status.textContent = ''; }};
+        utterance.onerror = () => {{ button.disabled = false; status.textContent = ''; }};
+        window.speechSynthesis.speak(utterance);
+      }};
+      button.addEventListener('click', speakGuide);
+    </script>
+    """,
+    height=90,
+)
 
 st.markdown(
     """
