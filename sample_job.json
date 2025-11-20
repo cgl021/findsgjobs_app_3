@@ -1,0 +1,9 @@
+{
+  "Title": "Planner (Junior Level, Aviation, Shift Work, Changi)",
+  "Company": "Changi Aviation Services",
+  "JobDescription": "We are seeking a junior planner to support schedule planning, spare parts logistics, and shift-based operations at Changi Airport. The ideal candidate has familiarity with scheduling, inventory tracking systems, and basic knowledge of aircraft operations, maintenance scheduling, or MRO processes.",
+  "EmploymentType": "Full-time",
+  "JobRequirement": "Candidate should be able to coordinate with suppliers and maintenance staff, manage shift rosters, and maintain accurate documentation of spares and work progress.",
+  "id_Job_Skills": ["scheduling", "inventory management", "shift work", "logistics", "excel"],
+  "NearestMRT": "Changi Airport"
+}

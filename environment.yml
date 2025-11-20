@@ -1,0 +1,24 @@
+name: findsgjobs_tmp
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - pandas
+  - requests
+  - cryptography
+  - authlib
+  - python-dotenv
+  - pip
+  - pip:
+      - streamlit
+      - PyPDF2
+      - python-docx
+      - langchain==1.0.7
+      - langchain-google-genai==3.0.3
+      - langchain-community==0.4.1
+      - langchain-tavily
+      - google-ai-generativelanguage==0.9.0
+      - tavily-python
+      - filetype==1.2.0
+      - reportlab
