@@ -505,22 +505,82 @@ if uploaded_resume is not None:
 st.markdown("---")
 
 # ===== JOB SELECTION =====
-st.subheader("📋 Select Job for Analysis")
-
 import pandas as pd
 df = pd.DataFrame(flat_jobs)
 visible_indices = df.index.tolist()
+current_selection = (
+    st.session_state.get("selected_job_idx")
+    if st.session_state.get("selected_job_idx") in visible_indices
+    else (visible_indices[0] if visible_indices else None)
+)
+
+# ===== Top matches preview before selection =====
+def _keyword_match_score(job_row: Dict, resume_text: str) -> int:
+    desc_plain = strip_html(job_row.get("Job Description", ""))
+    job_kw, overlap, _ = build_job_resume_overlap(desc_plain, resume_text)
+    if not job_kw:
+        return 0
+    return int(round(100 * len(overlap) / len(job_kw)))
+
+
+if st.session_state["resume_text"] and full_jobs:
+    scored = []
+    for idx, row in enumerate(flat_jobs):
+        score = _keyword_match_score(row, st.session_state["resume_text"])
+        if score > 0:
+            row_copy = dict(row)
+            row_copy["Match %"] = score
+            row_copy["idx"] = idx
+            scored.append(row_copy)
+
+    if scored:
+        top2 = sorted(scored, key=lambda r: r["Match %"], reverse=True)[:2]
+        st.markdown("### Optimal Job Roles")
+        preview_cols = ["Title", "Company", "Nearest MRT", "Salary Range", "Employment Type", "Min Education", "Min Experience", "Match %"]
+        st.dataframe(
+            pd.DataFrame(top2)[preview_cols].set_index(pd.Index([r["idx"] for r in top2])),
+            use_container_width=True,
+            hide_index=False,
+        )
+        idx_options = [r["idx"] for r in top2]
+        radio_options = ["Keep current selection"] + idx_options
+        default_value = "Keep current selection"
+        if current_selection in idx_options:
+            default_value = current_selection
+        chosen_top = st.radio(
+            "Pick from Optimal Job Roles to use for analysis (optional):",
+            options=radio_options,
+            index=radio_options.index(default_value),
+            format_func=lambda i: i if isinstance(i, str) else f"{flat_jobs[i]['Title']} — {flat_jobs[i]['Company']}",
+        )
+        if isinstance(chosen_top, int):
+            st.session_state["selected_job_idx"] = chosen_top
+            current_selection = chosen_top
+    st.markdown("---")
+
+st.subheader("📋 Select Job for Analysis")
 
 if visible_indices:
+    default_selection = (
+        current_selection
+        if current_selection in visible_indices
+        else visible_indices[0]
+    )
     selected = st.selectbox(
         "Choose a job to analyze",
         options=visible_indices,
-        index=st.session_state["selected_job_idx"] if st.session_state["selected_job_idx"] in visible_indices else 0,
+        index=visible_indices.index(default_selection),
         format_func=lambda i: f"{flat_jobs[i]['Title']} — {flat_jobs[i]['Company']}",
     )
     st.session_state["selected_job_idx"] = selected
     selected_job = full_jobs[selected]
-    st.info(f"**Selected role:** {selected_job.get('Title', '(No Title)')} at {selected_job.get('Company', 'N/A')}")
+    selected_company = (
+        selected_job.get("Company")
+        or selected_job.get("CompanyName")
+        or flat_jobs[selected].get("Company")
+        or "N/A"
+    )
+    st.info(f"**Selected role:** {selected_job.get('Title', '(No Title)')} at {selected_company}")
 else:
     st.warning("⚠️ No jobs available. Please go to the **Job Search** page and fetch jobs first.")
     st.stop()
@@ -535,9 +595,10 @@ if st.session_state["resume_text"]:
     if st.button("Run Gap Analysis", type="primary"):
         with st.spinner("Analysing your resume against the job…"):
             resume_text = st.session_state["resume_text"]
+            flat_row = flat_jobs[selected] if selected < len(flat_jobs) else {}
 
-            # Use job description only for keyword-based comparison
-            desc_plain = strip_html(get_job_description_text(selected_job))
+            # Use same job description source as the Optimal Job Roles preview for consistency
+            desc_plain = flat_row.get("Job Description") or strip_html(get_job_description_text(selected_job))
             combined_job_text = desc_plain
 
             job_kw, kw_overlap, kw_gaps = build_job_resume_overlap(
@@ -546,13 +607,10 @@ if st.session_state["resume_text"]:
 
             # Coverage metrics (keywords only)
             job_kw_total = len(job_kw)
-            keyword_coverage = int(
-                round(100 * len(kw_overlap) / job_kw_total)
-            ) if job_kw_total else 0
-            match_pct = keyword_coverage
+            match_pct = int(round(100 * len(kw_overlap) / job_kw_total)) if job_kw_total else 0
 
             st.session_state["job_match_pct"] = match_pct
-            st.session_state["keyword_coverage_pct"] = keyword_coverage
+            st.session_state["keyword_coverage_pct"] = match_pct
 
             # === ANALYSIS ===
             # If GEMINI_API_KEY is present in .env, attempt to use AI analysis (if packages installed).
@@ -578,7 +636,7 @@ if st.session_state["resume_text"]:
                         kw_overlap,
                         kw_gaps,
                         job_kw_total=job_kw_total,
-                        keyword_coverage=keyword_coverage,
+                        keyword_coverage=match_pct,
                     )
                     courses = None
             else:
@@ -589,7 +647,7 @@ if st.session_state["resume_text"]:
                     kw_overlap,
                     kw_gaps,
                     job_kw_total=job_kw_total,
-                    keyword_coverage=keyword_coverage,
+                    keyword_coverage=match_pct,
                 )
                 courses = None
             # Generate keyword-only analysis narrative and simple course recommendation
@@ -599,7 +657,7 @@ if st.session_state["resume_text"]:
                 kw_overlap,
                 kw_gaps,
                 job_kw_total=job_kw_total,
-                keyword_coverage=keyword_coverage,
+                keyword_coverage=match_pct,
             )
 
             course = recommend_course(selected_job, kw_gaps)
@@ -607,7 +665,7 @@ if st.session_state["resume_text"]:
             overview_section = (
                 "**📊 MATCH OVERVIEW**\n\n"
                 f"- Keyword overlap: {len(kw_overlap)} of {job_kw_total} unique keywords\n"
-                f"- Coverage: {keyword_coverage}%\n\n"
+                f"- Match: {match_pct}%\n\n"
             )
 
             result = (

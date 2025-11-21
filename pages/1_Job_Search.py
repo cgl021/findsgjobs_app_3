@@ -63,7 +63,6 @@ st.markdown(
     '<div class="big-title">🔍 Job Search</div>',
     unsafe_allow_html=True,
 )
-st.caption("Search and browse jobs from the FindSGJobs backend API.")
 
 
 # ---------------- SIDEBAR – JOB SEARCH ----------------
@@ -234,14 +233,25 @@ if flat_jobs:
     ]
     display_cols = [c for c in display_cols if c in df.columns]
 
-    st.dataframe(
-        df[display_cols].fillna(""),
-        use_container_width=True,
-        hide_index=True,
-        height=400,
-    )
-    
-    st.info("💡 Go to the **Gap Analysis** page to select a job and upload your resume to analyze your fit.")
+    st.markdown("**Select a role that interest you via buttons below (carried into Gap Analysis by default):**")
+    for i, row in df.iterrows():
+        btn_col, info_col = st.columns([1, 6])
+        with btn_col:
+            if st.button("Select", key=f"select-row-{i}"):
+                st.session_state["selected_job_idx"] = int(i)
+                st.success(f"Selected: {row['Title']} — {row['Company']}")
+        with info_col:
+            desc = row.get("Job Description", "") or "-"
+            st.markdown(
+                f"**{row['Title']}** — {row['Company']}  \n"
+                f"Nearest MRT: {row.get('Nearest MRT', '') or '-'} | "
+                f"Salary: {row.get('Salary Range', '') or '-'} | "
+                f"Employment Type: {row.get('Employment Type', '') or '-'} | "
+                f"Min Education: {row.get('Min Education', '') or '-'} | "
+                f"Min Experience: {row.get('Min Experience', '') or '-'}"
+            )
+            st.markdown(f"**Job Description:** {desc}")
+        st.markdown("---")
 else:
     st.info("Use the filters in the sidebar to search for jobs.")
 
